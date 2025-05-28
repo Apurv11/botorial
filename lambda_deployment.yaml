@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Rummy Game Suggestion Lambda Function with Bedrock Agent Integration'
+
+Parameters:
+  BedrockAgentId:
+    Type: String
+    Default: 'AJBHXXILZN'
+    Description: 'Bedrock Agent ID'
+  
+  BedrockAgentAliasId:
+    Type: String
+    Default: 'AVKP1ITZAA'
+    Description: 'Bedrock Agent Alias ID'
+  
+  Environment:
+    Type: String
+    Default: 'dev'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Deployment environment'
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: python3.11
+
+Resources:
+  RummySuggestionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'rummy-suggestion-${Environment}'
+      CodeUri: .
+      Handler: lambda_suggest.lambda_handler
+      Description: 'Provides AI-powered Rummy game suggestions using Bedrock Agent'
+      Environment:
+        Variables:
+          AWS_REGION: !Ref AWS::Region
+          BEDROCK_AGENT_ID: !Ref BedrockAgentId
+          BEDROCK_AGENT_ALIAS_ID: !Ref BedrockAgentAliasId
+          ENVIRONMENT: !Ref Environment
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeAgent
+                - bedrock-agent-runtime:InvokeAgent
+              Resource: 
+                - !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/${BedrockAgentId}'
+                - !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent-alias/${BedrockAgentId}/${BedrockAgentAliasId}'
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*'
+      Events:
+        SuggestionApi:
+          Type: Api
+          Properties:
+            Path: /suggest
+            Method: post
+            Cors:
+              AllowMethods: "'POST, OPTIONS'"
+              AllowHeaders: "'Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token'"
+              AllowOrigin: "'*'"
+
+  # API Gateway for the Lambda function
+  RummyApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub 'rummy-api-${Environment}'
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'POST, OPTIONS'"
+        AllowHeaders: "'Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+
+Outputs:
+  RummySuggestionFunctionArn:
+    Description: 'Rummy Suggestion Lambda Function ARN'
+    Value: !GetAtt RummySuggestionFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-RummySuggestionFunctionArn'
+
+  ApiGatewayEndpoint:
+    Description: 'API Gateway endpoint URL for Rummy Suggestion function'
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/suggest'
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiGatewayEndpoint'
+
+  FunctionName:
+    Description: 'Rummy Suggestion Lambda Function Name'
+    Value: !Ref RummySuggestionFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-FunctionName' 

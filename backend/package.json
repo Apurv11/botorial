@@ -21,14 +21,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.300.0",
+    "@aws-sdk/client-bedrock-agent-runtime": "^3.817.0",
     "@aws-sdk/credential-providers": "^3.300.0",
-    "@langchain/aws": "^0.1.10",
-    "@langchain/core": "^0.3.57",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
     "express": "^4.18.2",
-    "langchain": "^0.3.27",
     "mongoose": "^6.12.0",
     "socket.io": "^4.6.0"
   },

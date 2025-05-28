@@ -1,0 +1,370 @@
+openapi: 3.0.3
+info:
+  title: Botorial Rummy Suggest API
+  description: |
+    AI-powered move suggestions for Rummy game using AWS Bedrock Agent.
+    
+    This API provides intelligent strategic advice for 13-card Indian Rummy players by analyzing the current game state and suggesting optimal moves. The suggestions include:
+    - Whether to draw from closed deck or open deck
+    - Which card to discard and reasoning
+    - Possible melds to form
+    - Overall strategy assessment
+    
+    The API integrates with AWS Bedrock Agent for advanced AI reasoning and can operate in both production mode (with real Bedrock integration) and demo mode (with mock responses).
+  version: 1.0.0
+  contact:
+    name: Botorial API Support
+    email: support@botorial.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.botorial.com/v1
+    description: Production server
+  - url: https://staging-api.botorial.com/v1
+    description: Staging server
+  - url: http://localhost:8000
+    description: Local development server
+
+paths:
+  /suggest/{gameId}:
+    get:
+      summary: Get AI suggestion for next move
+      description: |
+        Returns an AI-powered suggestion for the player's next move based on the current game state.
+        
+        This endpoint analyzes the player's hand, available cards, and game context to provide strategic advice including:
+        - Draw strategy (closed deck vs open deck)
+        - Discard recommendations with reasoning
+        - Meld formation opportunities
+        - Overall strategic assessment
+        
+        The AI uses advanced Rummy strategy principles including:
+        - Pure sequence formation priority
+        - Joker optimization
+        - Opponent behavior prediction
+        - Risk assessment
+      operationId: getSuggestion
+      tags:
+        - Game Suggestions
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          description: Unique identifier for the game session
+          schema:
+            type: string
+            pattern: '^game_[0-9]+_[a-zA-Z0-9]+$'
+            example: "game_1234567890_abc123"
+          example: "game_1234567890_abc123"
+      responses:
+        '200':
+          description: Successful suggestion response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestionResponse'
+              examples:
+                strategic_advice:
+                  summary: Strategic advice example
+                  value:
+                    success: true
+                    suggestion: "🎯 AI Suggestion: Your hand shows potential for a hearts sequence. Pick the 6♥ if available from the discard pile, otherwise draw from closed deck. Consider discarding the King♠ as it's a high-value card with limited sequence potential. Focus on completing your pure sequence first - you have 7♥ and 8♥, so the 6♥ or 9♥ would complete it."
+                    timestamp: "2024-01-15T10:30:00Z"
+                    source: "bedrock-agent"
+                mock_response:
+                  summary: Mock response example
+                  value:
+                    success: true
+                    suggestion: "🤖 Bedrock Strategy: Draw from closed deck to avoid revealing your strategy. Consider forming sequences with middle cards (5-9) as they offer more flexibility than edge cards."
+                    timestamp: "2024-01-15T10:30:00Z"
+                    source: "bedrock-mock"
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "Game not found"
+                timestamp: "2024-01-15T10:30:00Z"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                bedrock_error:
+                  summary: Bedrock service error
+                  value:
+                    success: false
+                    error: "Failed to get AI suggestion"
+                    timestamp: "2024-01-15T10:30:00Z"
+                general_error:
+                  summary: General server error
+                  value:
+                    success: false
+                    error: "Failed to get suggestion"
+                    timestamp: "2024-01-15T10:30:00Z"
+
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the current health status of the API service
+      operationId: healthCheck
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  service:
+                    type: string
+                    example: "Botorial Suggest API"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00Z"
+                  bedrock_enabled:
+                    type: boolean
+                    description: Whether AWS Bedrock integration is enabled
+                    example: true
+
+  /test/add-game:
+    post:
+      summary: Add test game state
+      description: |
+        Utility endpoint for adding a game state for testing purposes.
+        This endpoint is typically used in development and testing environments.
+      operationId: addTestGame
+      tags:
+        - Testing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GameState'
+            example:
+              gameId: "game_1234567890_test123"
+              playerHand:
+                - id: "card_1"
+                  rank: "7"
+                  suit: "Hearts"
+                  value: 7
+                - id: "card_2"
+                  rank: "8"
+                  suit: "Hearts"
+                  value: 8
+                - id: "card_3"
+                  rank: "King"
+                  suit: "Spades"
+                  value: 13
+              openDeck:
+                - id: "card_discard_1"
+                  rank: "6"
+                  suit: "Hearts"
+                  value: 6
+              closedDeckCount: 45
+              jokerCard:
+                id: "joker_1"
+                rank: "Ace"
+                suit: "Clubs"
+                value: 1
+              currentPlayer: "player"
+              gameStatus: "in_progress"
+              playerMelds: []
+      responses:
+        '200':
+          description: Game added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Game game_1234567890_test123 added successfully"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T10:30:00Z"
+
+components:
+  schemas:
+    Card:
+      type: object
+      required:
+        - id
+        - rank
+        - suit
+        - value
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the card
+          example: "card_7h_1"
+        rank:
+          type: string
+          description: Card rank (Ace, 2-10, Jack, Queen, King)
+          enum: ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King"]
+          example: "7"
+        suit:
+          type: string
+          description: Card suit
+          enum: ["Hearts", "Diamonds", "Clubs", "Spades"]
+          example: "Hearts"
+        value:
+          type: integer
+          description: Numeric value of the card for scoring
+          minimum: 1
+          maximum: 13
+          example: 7
+
+    GameState:
+      type: object
+      required:
+        - gameId
+        - playerHand
+        - openDeck
+        - closedDeckCount
+        - jokerCard
+        - currentPlayer
+        - gameStatus
+      properties:
+        gameId:
+          type: string
+          description: Unique identifier for the game
+          pattern: '^game_[0-9]+_[a-zA-Z0-9]+$'
+          example: "game_1234567890_abc123"
+        playerHand:
+          type: array
+          description: Cards currently in the player's hand
+          items:
+            $ref: '#/components/schemas/Card'
+          minItems: 0
+          maxItems: 14
+        openDeck:
+          type: array
+          description: Cards in the open/discard pile
+          items:
+            $ref: '#/components/schemas/Card'
+        closedDeckCount:
+          type: integer
+          description: Number of cards remaining in the closed deck
+          minimum: 0
+          maximum: 52
+          example: 45
+        jokerCard:
+          $ref: '#/components/schemas/Card'
+          description: The joker card for this game
+        currentPlayer:
+          type: string
+          description: Whose turn it is
+          enum: ["player", "bot"]
+          example: "player"
+        gameStatus:
+          type: string
+          description: Current status of the game
+          enum: ["waiting", "in_progress", "completed", "paused"]
+          example: "in_progress"
+        playerMelds:
+          type: array
+          description: Melds (sets/sequences) formed by the player
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/Card'
+          default: []
+
+    SuggestionResponse:
+      type: object
+      required:
+        - success
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          description: Whether the suggestion was generated successfully
+          example: true
+        suggestion:
+          type: string
+          description: The AI-generated strategic suggestion
+          example: "🎯 AI Suggestion: Your hand shows potential for a hearts sequence. Pick the 6♥ if available, discard the King♠."
+        timestamp:
+          type: string
+          format: date-time
+          description: When the suggestion was generated
+          example: "2024-01-15T10:30:00Z"
+        error:
+          type: string
+          description: Error message if suggestion failed
+          example: null
+        source:
+          type: string
+          description: Source of the suggestion (bedrock-agent, bedrock-mock, etc.)
+          enum: ["bedrock-agent", "bedrock-mock", "bedrock-error"]
+          default: "bedrock-agent"
+          example: "bedrock-agent"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          description: Always false for error responses
+          example: false
+        error:
+          type: string
+          description: Error message describing what went wrong
+          example: "Game not found"
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+          example: "2024-01-15T10:30:00Z"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+
+tags:
+  - name: Game Suggestions
+    description: AI-powered move suggestions for Rummy games
+  - name: Health
+    description: Service health and status endpoints
+  - name: Testing
+    description: Utility endpoints for testing and development
+
+externalDocs:
+  description: Botorial API Documentation
+  url: https://docs.botorial.com 

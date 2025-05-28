@@ -1,83 +1,112 @@
-// LangChain Claude Service with AWS Bedrock
+// AWS Bedrock Agent Runtime Service
 // For real AWS integration, set environment variables in .env file
 
-const USE_REAL_LANGCHAIN = process.env.NODE_ENV === 'production' || process.env.USE_LANGCHAIN === 'true';
+const USE_REAL_BEDROCK = true;
 
-let ChatBedrock, HumanMessage, SystemMessage;
+let BedrockAgentRuntimeClient, InvokeAgentCommand;
 
-if (USE_REAL_LANGCHAIN) {
+if (USE_REAL_BEDROCK) {
   try {
-    ({ ChatBedrock } = require('@langchain/aws'));
-    ({ HumanMessage, SystemMessage } = require('@langchain/core/messages'));
-    console.log('🚀 LangChain AWS Bedrock initialized - real Claude AI ready!');
+    ({ BedrockAgentRuntimeClient, InvokeAgentCommand } = require('@aws-sdk/client-bedrock-agent-runtime'));
+    console.log('🚀 AWS Bedrock Agent Runtime initialized - real Claude AI ready!');
   } catch (error) {
-    console.log('⚠️ LangChain modules not available, falling back to mock service');
-    console.log('To enable: Set USE_LANGCHAIN=true in .env and configure AWS credentials');
+    console.log('⚠️ AWS SDK modules not available, falling back to mock service');
+    console.log('To enable: Set USE_BEDROCK=true in .env and configure AWS credentials');
   }
 }
 
 class ClaudeService {
   constructor() {
-    this.isDemo = !USE_REAL_LANGCHAIN;
+    this.isDemo = !USE_REAL_BEDROCK;
+    this.sessionId = this.generateSessionId();
     
-    if (USE_REAL_LANGCHAIN && ChatBedrock) {
-      this.initializeLangChain();
+    if (USE_REAL_BEDROCK && BedrockAgentRuntimeClient) {
+      this.initializeBedrockAgent();
     } else {
       console.log('🎯 Mock Claude Service initialized - perfect for hackathon demos!');
-      console.log('💡 To enable LangChain: Set USE_LANGCHAIN=true in backend/.env');
+      console.log('💡 To enable Bedrock Agent: Set USE_BEDROCK=true in backend/.env');
     }
   }
 
-  initializeLangChain() {
+  initializeBedrockAgent() {
     try {
-      this.model = new ChatBedrock({
-        model: process.env.CLAUDE_MODEL_ID || 'anthropic.claude-3-sonnet-20240229-v1:0',
+      this.client = new BedrockAgentRuntimeClient({
         region: process.env.AWS_REGION || 'us-east-1',
         credentials: {
           accessKeyId: process.env.AWS_ACCESS_KEY_ID,
           secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+          sessionToken: process.env.AWS_SESSION_TOKEN,
         },
-        maxTokens: 2000,
-        temperature: 0.7,
       });
-      console.log('✅ LangChain ChatBedrock model initialized successfully');
+      
+      this.agentId = "O0GNFE1XMV";
+      this.agentAliasId = 'VZXFC1IILC';
+      
+      console.log('✅ Bedrock Agent Runtime client initialized successfully');
     } catch (error) {
-      console.error('❌ LangChain initialization failed:', error.message);
+      console.error('❌ Bedrock Agent initialization failed:', error.message);
       this.isDemo = true;
     }
   }
 
-  async sendMessage(message, systemPrompt = null, maxTokens = 2000) {
-    if (this.isDemo || !this.model) {
-      return this.getMockResponse(message, 'chat');
+  generateSessionId() {
+    return `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  async invokeBedrockAgent(prompt, sessionId = null) {
+    if (this.isDemo || !this.client) {
+      return this.getMockResponse(prompt, 'chat');
     }
 
     try {
-      const messages = [];
-      
-      if (systemPrompt) {
-        messages.push(new SystemMessage(systemPrompt));
-      }
-      
-      messages.push(new HumanMessage(message));
+      const command = new InvokeAgentCommand({
+        agentId: this.agentId,
+        agentAliasId: this.agentAliasId,
+        sessionId: sessionId || this.sessionId,
+        inputText: prompt,
+      });
 
-      const response = await this.model.invoke(messages);
-      
+      let completion = "";
+      console.log("this.agentId", this.agentId);
+      const response = await this.client.send(command);
+
+      if (response.completion === undefined) {
+        throw new Error("Completion is undefined");
+      }
+
+      for await (const chunkEvent of response.completion) {
+        const chunk = chunkEvent.chunk;
+        if (chunk && chunk.bytes) {
+          const decodedResponse = new TextDecoder("utf-8").decode(chunk.bytes);
+          completion += decodedResponse;
+        }
+      }
+
       return {
         success: true,
-        message: response.content,
-        usage: response.usage_metadata || { input_tokens: 50, output_tokens: 100 },
-        source: 'langchain-bedrock'
+        message: completion,
+        sessionId: sessionId || this.sessionId,
+        source: 'bedrock-agent'
       };
     } catch (error) {
-      console.error('LangChain Claude service error:', error);
+      console.error('Bedrock Agent service error:', error);
       return {
         success: false,
         error: error.message,
-        message: 'Sorry, I encountered an error processing your request with LangChain. Please try again.',
-        source: 'langchain-error'
+        message: 'Sorry, I encountered an error processing your request with Bedrock Agent. Please try again.',
+        source: 'bedrock-error'
       };
     }
+  }
+
+  async sendMessage(message, systemPrompt = null, maxTokens = 2000) {
+    let fullPrompt = message;
+    
+    if (systemPrompt) {
+      fullPrompt = `${systemPrompt}\n\nUser: ${message}`;
+    }
+
+    return await this.invokeBedrockAgent(fullPrompt);
   }
 
   async getRummyAdvice(message) {
@@ -90,7 +119,7 @@ class ClaudeService {
     
     Be concise but comprehensive in your advice.`;
 
-    if (this.isDemo || !this.model) {
+    if (this.isDemo || !this.client) {
       return this.getMockResponse(message, 'rummy');
     }
 
@@ -114,11 +143,11 @@ class ClaudeService {
     3. Any possible melds to form
     4. Overall strategy assessment`;
 
-    const systemPrompt = `You are a Rummy game AI assistant. Analyze the hand and provide tactical suggestions. Be specific about card choices and explain the reasoning behind each suggestion.`;
+    const systemPrompt = `You are a Rummy game AI assistant. Analyze the hand and provide tactical suggestions. Be specific about card choices and explain the reasoning behind each suggestion. keep the word limit to 50 words`;
 
-    if (this.isDemo || !this.model) {
-      return this.getMockResponse(prompt, 'suggestion');
-    }
+    // if (this.isDemo || !this.client) {
+    //   return this.getMockResponse(prompt, 'suggestion');
+    // }
 
     return await this.sendMessage(prompt, systemPrompt);
   }
@@ -140,11 +169,11 @@ class ClaudeService {
 
     const systemPrompt = `You are a professional Rummy coach providing post-game analysis. Be constructive, specific, and educational in your feedback.`;
 
-    if (this.isDemo || !this.model) {
+    if (this.isDemo || !this.client) {
       return this.getMockResponse(prompt, 'analysis');
     }
 
-    return await this.sendMessage(prompt, systemPrompt, 3000);
+    return await this.sendMessage(prompt, systemPrompt);
   }
 
   formatHandForAI(hand) {
@@ -155,22 +184,22 @@ class ClaudeService {
   getMockResponse(message, type) {
     const responses = {
       chat: [
-        "🎯 LangChain Demo: I'm ready to help with Rummy strategies! Ask me about pure sequences, sets, or game tactics.",
-        "🚀 Hackathon Mode: This showcases LangChain integration. For real AI, configure AWS Bedrock credentials.",
-        "💡 Mock LangChain: I would analyze your Rummy question using advanced Claude AI reasoning through LangChain."
+        "🎯 Bedrock Agent Demo: I'm ready to help with Rummy strategies! Ask me about pure sequences, sets, or game tactics.",
+        "🚀 Hackathon Mode: This showcases AWS Bedrock Agent integration. For real AI, configure AWS credentials.",
+        "💡 Mock Bedrock Agent: I would analyze your Rummy question using advanced Claude AI reasoning through Bedrock Agent Runtime."
       ],
       rummy: [
-        `🎲 LangChain Rummy Expert: "${message}" - Focus on forming pure sequences first (mandatory for declaration). Middle cards (5-9) offer more flexibility than edge cards.`,
+        `🎲 Bedrock Rummy Expert: "${message}" - Focus on forming pure sequences first (mandatory for declaration). Middle cards (5-9) offer more flexibility than edge cards.`,
         `🃏 Strategic Advice: "${message}" - Use jokers wisely for high-value sets. Track opponent's picks/discards to predict their hand.`,
         `🎯 Tactical Response: "${message}" - Prioritize pure sequences, then sets, then impure sequences. Discard high-value unmatched cards.`
       ],
       suggestion: [
-        "🤖 LangChain Strategy: Draw from closed deck to avoid revealing your strategy. Consider forming sequences with middle cards.",
+        "🤖 Bedrock Strategy: Draw from closed deck to avoid revealing your strategy. Consider forming sequences with middle cards.",
         "🎯 AI Suggestion: Your hand shows potential for a hearts sequence. Pick the 6♥ if available, discard the King♠.",
-        "💡 LangChain Analysis: Form the 7-8-9 of spades sequence first. Discard face cards unless they complete sets."
+        "💡 Bedrock Analysis: Form the 7-8-9 of spades sequence first. Discard face cards unless they complete sets."
       ],
       analysis: [
-        `🏆 LangChain Game Analysis:
+        `🏆 Bedrock Game Analysis:
         
         Performance: Strategic gameplay demonstrated
         Strengths: Good sequence formation, efficient melding
@@ -191,7 +220,7 @@ class ClaudeService {
       success: true,
       message: randomResponse,
       usage: { input_tokens: 25, output_tokens: 50 },
-      source: 'langchain-mock'
+      source: 'bedrock-mock'
     };
   }
 }

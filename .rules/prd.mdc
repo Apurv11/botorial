@@ -1,0 +1,228 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+name: Rummy Game Assistant
+description: A full-stack Rummy game assistant with two main functionalities: "Ask BOT" (a ChatGPT-like conversational AI) and "Play with BOT" (an interactive 13-card Rummy game).
+technologies:
+  frontend: React.js
+  backend: Node.js, Express.js
+  database: DynamoDB
+  ai_model: Amazon Claude 3.7 (via AWS Bedrock, accessed using LangChain.js)
+features:
+  ask_bot:
+    - Text-based conversational interface.
+    - User asks Rummy-related questions (rules, strategies, etc.).
+    - Bot responds using Amazon Claude via LangChain.js.
+  play_with_bot:
+    - Interactive 13-card Rummy game table.
+    - User plays against an AI bot.
+    - **Open Deck (Discard Pile) and Closed Deck (Draw Pile) functionality.**
+    - Card sorting functionality (suits, ranks, groups).
+    - Suggestion system (melds, discards).
+    - Hand card score calculation.
+    - Post-game analysis (how the user played, optimal moves, etc.).
+architecture:
+  - client: React application
+  - server: Node.js/Express.js API
+  - database: DynamoDB
+  - ai_integration: AWS SDK for Bedrock (Claude) and LangChain.js
+  - real_time_communication: WebSockets (Socket.IO) for game state updates
+deployment_considerations:
+  backend: AWS Lambda (for serverless execution)
+  frontend: AWS S3/CloudFront or Netlify/Vercel
+  database: DynamoDB
+project_structure:
+  - root/
+    - client/ # React frontend
+      - public/
+      - src/
+        - assets/
+        - components/ # Reusable UI components
+          - Card.jsx
+          - Button.jsx
+          - ChatInput.jsx
+          - GameTable.jsx # Main game table component
+          - Deck.jsx # Component for draw and discard piles
+          - PlayerHand.jsx
+          - ...
+        - pages/ # Main views/screens
+          - HomePage.jsx
+          - AskBotPage.jsx
+          - PlayGamePage.jsx
+        - contexts/ # React Context for global state (e.g., Auth, GameState)
+          - GameContext.jsx
+          - AuthContext.jsx
+        - hooks/ # Custom React hooks
+        - api/ # Frontend API service calls
+        - styles/ # Global CSS or styled-components
+        - utils/ # Utility functions (e.g., Rummy logic helpers)
+        - App.js
+        - index.js
+    - server/ # Node.js backend
+      - config/ # Database connection, environment variables
+        - db.js
+        - awsConfig.js # AWS SDK configuration
+      - controllers/ # Business logic handlers
+        - authController.js
+        - chatController.js
+        - gameController.js
+      - models/ # Mongoose schemas
+        - User.js
+        - Game.js
+        - ChatSession.js
+      - routes/ # API routes
+        - authRoutes.js
+        - chatRoutes.js
+        - gameRoutes.js
+      - services/ # External service integrations (e.g., AWS Bedrock)
+        - claudeService.js # Handles LangChain/Bedrock integration
+        - rummyGameLogic.js # Core Rummy game logic
+      - middleware/ # Express middleware (auth, error handling)
+      - utils/ # Server-side utility functions
+      - app.js # Express app setup
+      - server.js # Server entry point (with Socket.IO)
+    - .env # Environment variables
+    - README.md
+    - package.json # Root package.json (for workspaces or scripts)
+    - .gitignore
+---
+# Rummy Game Assistant Project Plan
+**Goal:** To build a functional Rummy Game Assistant within the hackathon timeframe, demonstrating Agentic AI capabilities using Amazon Claude, with explicit handling of draw/discard piles and LangChain integration.
+## 1. Project Setup and Initialization
+### Frontend (React.js)
+- Create a new React project using Create React App or Vite.
+- Install necessary dependencies: `react-router-dom`, `axios`, `socket.io-client`, `react-icons`, `tailwindcss` (or similar for styling).
+- Set up basic routing for Home, Ask Bot, and Play Game pages.
+### Backend (Node.js/Express.js)
+- Initialize a new Node.js project.
+- Install core dependencies: `express`, `mongoose`, `dotenv`, `cors`, `socket.io`.
+- Install LangChain.js dependencies: `@langchain/aws`, `@langchain/core`, `aws-sdk` (or specific `@aws-sdk/client-bedrock-runtime` if using only that part).
+- Set up a basic Express server.
+- Connect to MongoDB.
+## 2. Core Functionalities Development
+### 2.1. Ask BOT Feature
+**Frontend (React.js):**
+- Create `AskBotPage.jsx`.
+- Implement a chat interface: input text box, send button, message display area.
+- Display user queries and bot responses in a chat bubble format.
+- Integrate with the backend API to send user messages and receive Claude's responses.
+**Backend (Node.js/Express.js):**
+- Create `/api/chat` endpoint.
+- This endpoint will receive user text input.
+- **Claude Integration via LangChain.js (`claudeService.js`):**
+    - Configure AWS SDK (credentials, region) for Bedrock access.
+    - Use LangChain.js's Bedrock integration (e.g., `ChatBedrock` or `Bedrock` LLM).
+    - Initialize the Claude model through LangChain.
+    - Define a system prompt for Claude to act as a Rummy expert.
+    - Pass user query to LangChain's conversational chain or LLM call.
+    - LangChain will handle the prompt formatting and interaction with Bedrock.
+    - Parse LangChain's output and send it back to the frontend.
+- Implement basic chat session management (optional for hackathon, but good for context).
+### 2.2. Play with BOT Feature (Rummy Game)
+**Frontend (React.js):**
+- Create `PlayGamePage.jsx`.
+- **Game Table UI:**
+    - Represent the playing area, player's hand, discard pile, draw pile.
+    - Visual representation of cards (e.g., `Card.jsx` component for each card).
+- **Deck Functionality (`Deck.jsx`):**
+    - **Closed Deck (Draw Pile):** Display as a stack of face-down cards. User can click to draw.
+    - **Open Deck (Discard Pile):** Display face-up, showing the top card. User can click to draw the top card.
+- **Player Hand Management:**
+    - Display player's 13 cards.
+    - **Card Sorting:** Implement client-side logic to sort cards by suit, rank, or group (e.g., numerical order within suits, then by suit). Provide interactive buttons for sorting.
+    - **Drag and Drop / Click for Interaction:** Allow users to pick/discard cards, and form melds.
+- **Game Actions:**
+    - Draw a card from **Closed Deck**.
+    - Draw a card from **Open Deck (Discard Pile)**.
+    - Discard a card to the **Open Deck**.
+    - Declare melds (sets and sequences).
+    - Declare game.
+- **Suggestions:**
+    - Implement a button "Get Suggestion".
+    - When clicked, send current hand state, discard pile top card, and game context to backend.
+    - Display suggestions from the AI (e.g., "Meld 3 of Hearts, 4 of Hearts, 5 of Hearts", "Discard Queen of Spades").
+- **Hand Card Score:**
+    - Display the current score of the player's hand (points of ungrouped cards). Update dynamically.
+**Backend (Node.js/Express.js with Socket.IO):**
+- **Real-time Game State:**
+    - Use `socket.io` for real-time communication between players (user and bot) and the server.
+    - Emit game state updates (card drawn, card discarded, meld formed, turn change) to both clients.
+- **Rummy Game Logic (`rummyGameLogic.js`):**
+    - Deck creation, shuffling, dealing (managing both draw and discard piles).
+    - Turn management (player turn, bot turn).
+    - Validation of melds (sets and sequences).
+    - Scoring logic (calculating points for a hand).
+    - Game end conditions (declaration, valid declaration check).
+    - Logic for drawing from open vs. closed deck.
+    - Logic for discarding to open deck.
+- **Bot AI (`gameController.js` leveraging Claude via LangChain.js):**
+    - **Initial AI Strategy (Rule-based first, then integrate Claude):**
+        - For basic play, the bot can follow simple rules:
+            - Prioritize forming pure sequences.
+            - Then sets.
+            - Then impure sequences.
+            - Discard high-value unmatched cards.
+            - **Decision for draw:** Prefer drawing from discard pile if it completes a meld; otherwise, draw from closed deck.
+    - **Claude Integration for Advanced Bot Play (Stretch Goal/Enhancement):**
+        - Send the bot's current hand, open deck top card, and game state to Claude via LangChain.js.
+        - **Agentic Behavior:** Frame the prompt to Claude as a multi-step decision: "Given this Rummy hand: [cards], discard pile top card: [card], and draw pile available. What is the optimal move: 1) Draw from closed deck? 2) Draw from discard pile? If drawing from discard, what card to discard? If forming melds, specify them."
+        - Parse LangChain's structured output from Claude and execute the suggested action.
+    - **Suggestion System:**
+        - Expose an API endpoint (`/api/game/suggest`) that takes the current hand, discard pile, etc.
+        - This endpoint calls `rummyGameLogic.js` to analyze the hand and suggest melds or optimal discards.
+        - For more advanced suggestions, this could also leverage Claude via LangChain.js by describing the user's hand and asking for optimal moves/discards.
+### 2.3. Post-Game Analysis
+**Frontend (React.js):**
+- After a game ends, display a "Game Analysis" screen.
+- Show a summary of the game.
+**Backend (Node.js/Express.js leveraging Claude via LangChain.js):**
+- Capture game history (moves made by user and bot), including draw/discard choices.
+- After the game, send the game history to Claude via LangChain.js.
+- **Claude Analysis Prompt (via LangChain):**
+    - "Analyze this Rummy game log, focusing on Player A's strategy. Player A's moves are X, Y, Z (including draw source and discards). Bot's moves are A, B, C. Provide feedback on Player A's strategy, highlight good moves, suggest improvements, and identify missed opportunities for melds or declarations, especially considering choices from open vs. closed deck."
+- Receive and process Claude's analytical response (handled by LangChain's output parsing).
+- Send the analysis back to the frontend for display.
+- Store game history and analysis in MongoDB for future review (optional).
+## 3. Database (MongoDB)
+- **User Authentication:** Store user credentials (hashed passwords) in `User` collection.
+- **Chat Sessions:** Store chat history for "Ask BOT" if persistent context is desired (optional).
+- **Game State:** Store ongoing game states in `Game` collection (including `drawPile`, `discardPile`, `playerHands`, `turnOrder`, `lastDiscard`) for persistence or if multiple concurrent games are envisioned (useful for resuming games or detailed analysis).
+- **Game History/Analysis:** Store past game results and AI analysis for "Post-Game Analysis" feature.
+## 4. Authentication (Optional, but Recommended for Hackathon)
+- Implement simple user registration and login using JWTs.
+- Protect backend routes.
+## 5. Deployment Considerations
+- **Backend (Node.js):**
+    - **AWS EC2:** Deploy the Node.js application directly on an EC2 instance. This gives full control over the environment. You'll need to install Node.js, set up Nginx/Apache as a reverse proxy, and manage processes (e.g., PM2). Access to Bedrock would be via IAM roles attached to the EC2 instance.
+    - **AWS Lambda:** Refactor the Express routes into Lambda functions. This makes it serverless and scales automatically. `server.js` would become an API Gateway-triggered Lambda. LangChain Bedrock integration would still work. For Socket.IO, you'd typically use API Gateway's WebSocket APIs. This might be more complex for a hackathon if you're not familiar with Lambda/API Gateway WebSockets.
+- **Frontend (React.js):**
+    - **AWS S3/CloudFront:** Build the React app and upload the static files to an S3 bucket. Use CloudFront for CDN and SSL.
+    - **Netlify/Vercel:** Easier for frontend deployment, often integrates directly with your Git repository.
+- **Database:** MongoDB Atlas is highly recommended for a managed, scalable MongoDB service.
+## 6. Testing
+- Manual testing of all features.
+- Consider basic unit tests for Rummy game logic.
+## 7. Next Steps (After Cursor Generation)
+- Review generated code: Understand the structure and fill in logic where placeholders exist.
+- **Crucially, implement detailed Rummy game logic:** This is the most complex part and will require significant custom coding, especially managing the deck state (`drawPile`, `discardPile`), card validation, and scoring.
+- Refine Claude prompts via LangChain: Experiment with different prompts and LangChain's chain types (e.g., `Agents`, `Chains`) to get the desired quality of responses for both the "Ask BOT" and "Play with BOT" suggestions/analysis. Focus on structured outputs from Claude if possible for easier parsing.
+- Implement responsive UI for various screen sizes.
+---
+**Key Changes and Rationale:**
+1.  **`Deck.jsx` Component:** Added to the `components` list to specifically call out the visual representation of the draw and discard piles.
+2.  **`Play with BOT` Feature Description:** Explicitly mentioned "Open Deck (Discard Pile) and Closed Deck (Draw Pile) functionality."
+3.  **Backend Rummy Logic (`rummyGameLogic.js`):** Emphasized that this file will handle the state of `drawPile` and `discardPile`, and the logic for drawing from each.
+4.  **Bot AI:**
+    * Added logic for the bot's decision on **drawing from the open vs. closed deck**.
+    * Enhanced the prompt structure for Claude to suggest optimal moves, potentially guiding it to provide a decision for drawing from either deck.
+    * Highlighted LangChain's role in creating more "agentic" behavior by potentially building chains that make multi-step decisions.
+5.  **Database (`Game` Model):** Included `drawPile`, `discardPile`, `lastDiscard` in the list of items to be stored in the `Game` collection for persistence.
+6.  **Deployment Considerations:** Added dedicated sections for EC2 and Lambda for the backend, explaining the basics of each approach and how Bedrock access (via IAM roles) would work.
+7.  **LangChain.js Integration:**
+    * Explicitly added `@langchain/aws` and `@langchain/core` to backend dependencies.
+    * Updated `claudeService.js` to indicate it will use LangChain for Bedrock interactions.
+    * Modified prompts to mention LangChain's role in mediation.
+This updated `.mdc` file provides a more comprehensive blueprint, especially regarding the deck mechanics and the integration of LangChain for more sophisticated AI interactions and deployment strategies. Remember to copy and paste this entire content into your `.mdc` file and then open it with Cursor.
