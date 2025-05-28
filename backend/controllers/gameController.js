@@ -9,6 +9,17 @@ class GameController {
   constructor() {
     this.games = new Map();
     console.log('Game controller initialized with statistics service');
+
+    // Bind 'this' for all methods used as route handlers or in callbacks
+    this.createGame = this.createGame.bind(this);
+    this.getGameState = this.getGameState.bind(this);
+    this.drawCard = this.drawCard.bind(this);
+    this.discardCard = this.discardCard.bind(this);
+    this.formMeld = this.formMeld.bind(this);
+    this.declareGame = this.declareGame.bind(this);
+    this.getSuggestion = this.getSuggestion.bind(this);
+    this.getGameAnalysis = this.getGameAnalysis.bind(this);
+    this.makeBotMove = this.makeBotMove.bind(this); // Crucial for setTimeout
   }
 
   // Create a new game
@@ -237,8 +248,8 @@ class GameController {
         gameState.jokerCard
       );
       
-      // Trigger bot move immediately without timeout for testing
-      this.makeBotMove(gameId);
+      // Trigger bot move with explicit binding for setTimeout to ensure 'this' context
+      setTimeout(this.makeBotMove.bind(this, gameId), 1000);
       
       res.json({
         success: true,
@@ -369,12 +380,16 @@ class GameController {
       }
       
       // Check if player can declare
-      const canDeclare = rummyGameLogic.canDeclareGame(gameState.players.player);
+      const canDeclare = rummyGameLogic.canDeclareGame(
+        gameState.playerHand, 
+        gameState.playerMelds, 
+        gameState.jokerCard
+      );
       
       if (!canDeclare.valid) {
         return res.status(400).json({
           success: false,
-          error: canDeclare.reason
+          error: canDeclare.reason || 'Cannot declare with current hand and melds.'
         });
       }
 
@@ -397,18 +412,19 @@ class GameController {
         message: 'Game declared successfully!',
         gameState: {
           ...gameState,
-          players: {
-            player: {
-              hand: gameState.players.player.hand,
-              melds: gameState.players.player.melds,
-              score: gameState.players.player.score
-            },
-            bot: {
-              handCount: gameState.players.bot.hand.length,
-              melds: gameState.players.bot.melds,
-              score: gameState.players.bot.score
-            }
-          }
+          playerHand: gameState.playerHand,
+          playerMelds: gameState.playerMelds,
+          playerScore: rummyGameLogic.calculateHandScore(gameState.playerHand, gameState.playerMelds, gameState.jokerCard),
+          botHandCount: gameState.botHand.length,
+          botMelds: gameState.botMelds,
+          botScore: rummyGameLogic.calculateHandScore(gameState.botHand, gameState.botMelds, gameState.jokerCard),
+          gameId: gameState.gameId,
+          openDeck: gameState.openDeck,
+          closedDeckCount: gameState.closedDeck.length,
+          jokerCard: gameState.jokerCard,
+          currentPlayer: gameState.currentPlayer,
+          gameStatus: gameState.status,
+          winner: gameState.winner
         },
         statistics: statisticsService.getStatistics().statistics
       });

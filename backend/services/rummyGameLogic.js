@@ -254,7 +254,11 @@ class RummyGameLogic {
     gameState.gameHistory.push({
       ...move,
       timestamp: new Date(),
-      gameState: JSON.parse(JSON.stringify(gameState)) // Deep copy for history
+      // REMOVED: gameState: JSON.parse(JSON.stringify(gameState)) // This was causing heap out of memory
+      // Optionally, log only essential parts of the state if needed, e.g.:
+      // playerHandCount: gameState.playerHand.length,
+      // botHandCount: gameState.botHand.length,
+      // openDeckTopCard: gameState.openDeck.length > 0 ? gameState.openDeck[gameState.openDeck.length -1] : null
     });
     gameState.lastMove = move;
     return gameState;
