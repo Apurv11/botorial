@@ -1,79 +1,7 @@
 ---
-name: Rummy Game Assistant
-description: A full-stack Rummy game assistant with two main functionalities: "Ask BOT" (a ChatGPT-like conversational AI) and "Play with BOT" (an interactive 13-card Rummy game).
-technologies:
-  frontend: React.js
-  backend: Node.js, Express.js
-  database: MongoDB
-  ai_model: Amazon Claude (via AWS Bedrock)
-features:
-  ask_bot:
-    - Text-based conversational interface.
-    - User asks Rummy-related questions (rules, strategies, etc.).
-    - Bot responds using Amazon Claude.
-  play_with_bot:
-    - Interactive 13-card Rummy game table.
-    - User plays against an AI bot.
-    - Card sorting functionality (suits, ranks, groups).
-    - Suggestion system (melds, discards).
-    - Hand card score calculation.
-    - Post-game analysis (how the user played, optimal moves, etc.).
-architecture:
-  - client: React application
-  - server: Node.js/Express.js API
-  - database: MongoDB
-  - ai_integration: AWS SDK for Bedrock (Claude)
-  - real_time_communication: WebSockets (Socket.IO) for game state updates
-project_structure:
-  - root/
-    - client/ # React frontend
-      - public/
-      - src/
-        - assets/
-        - components/ # Reusable UI components
-          - Card.jsx
-          - Button.jsx
-          - ChatInput.jsx
-          - ...
-        - pages/ # Main views/screens
-          - HomePage.jsx
-          - AskBotPage.jsx
-          - PlayGamePage.jsx
-        - contexts/ # React Context for global state (e.g., Auth, GameState)
-          - GameContext.jsx
-          - AuthContext.jsx
-        - hooks/ # Custom React hooks
-        - api/ # Frontend API service calls
-        - styles/ # Global CSS or styled-components
-        - utils/ # Utility functions (e.g., Rummy logic helpers)
-        - App.js
-        - index.js
-    - server/ # Node.js backend
-      - config/ # Database connection, environment variables
-        - db.js
-      - controllers/ # Business logic handlers
-        - authController.js
-        - chatController.js
-        - gameController.js
-      - models/ # Mongoose schemas
-        - User.js
-        - Game.js
-        - ChatSession.js
-      - routes/ # API routes
-        - authRoutes.js
-        - chatRoutes.js
-        - gameRoutes.js
-      - services/ # External service integrations (e.g., AWS Bedrock)
-        - claudeService.js
-        - rummyGameLogic.js # Core Rummy game logic
-      - middleware/ # Express middleware (auth, error handling)
-      - utils/ # Server-side utility functions
-      - app.js # Express app setup
-      - server.js # Server entry point (with Socket.IO)
-    - .env # Environment variables
-    - README.md
-    - package.json # Root package.json (for workspaces or scripts)
-    - .gitignore
+description: 
+globs: 
+alwaysApply: false
 ---
 
 # Rummy Game Assistant Project Plan
@@ -143,11 +71,25 @@ project_structure:
     - Use `socket.io` for real-time communication between players (user and bot) and the server.
     - Emit game state updates (card drawn, card discarded, meld formed, turn change) to both clients.
 - **Rummy Game Logic (`rummyGameLogic.js`):**
-    - Deck creation, shuffling, dealing.
-    - Turn management (player turn, bot turn).
-    - Validation of melds (sets and sequences).
-    - Scoring logic (calculating points for a hand).
-    - Game end conditions (declaration, valid declaration check).
+    - **Deck Management:**
+        - **Closed Deck (Stock Pile):**
+            - Initialize with one or more standard 52-card decks, plus jokers as per defined rules.
+            - Implement shuffling mechanism (e.g., Fisher-Yates algorithm).
+            - Function to draw the top card.
+            - Logic to handle exhaustion: if the stock pile runs out, the discard pile (except the last card) is shuffled to become the new stock pile.
+        - **Open Deck (Discard Pile):**
+            - Initialize with one card from the stock pile after dealing.
+            - Function to add a card to the top (when a player discards). The discarded card is always face up.
+            - Function to allow a player to pick the top card from the discard pile (as an alternative to drawing from the stock pile).
+    - Dealing: Distribute 13 cards to each player (user and bot).
+- **Turn Management:**
+    - Player turn, bot turn.
+- **Validation of melds:**
+    - Sets and sequences.
+- **Scoring logic:**
+    - Calculating points for a hand.
+- **Game end conditions:**
+    - Declaration, valid declaration check.
 - **Bot AI (`gameController.js` leveraging Claude/custom logic):**
     - **Initial AI Strategy (Rule-based first, then integrate Claude):**
         - For basic play, the bot can follow simple rules:
